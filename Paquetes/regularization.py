@@ -21,18 +21,19 @@ def weights_vs_c(
     Prameters
     ---------
         - X : np.ndarray
-              features matrix
+            features matrix
 
         - y: np.ndarray
-             array with target classes
+            array with target classes
         - clasifier : object
-                     predictor clasifier object of sklearn which implement fit method and C inverse hyperparameter of regularization
+                    predictor clasifier object of sklearn which implement fit method and C inverse hyperparameter of regularization
         - features_names: Optional[List[str]]
-                          List of str to name the features weights in the plot
+                        List of str to name the features weights in the plot
     ...
 
     Return 
     ------
+        - None
     ...
 
     """
@@ -78,10 +79,10 @@ def weights_vs_c(
                                     linewidth = 0.5,
                                     ticks = 'outside',
                                     tickfont = dict(
-                                                    family = 'Arial',
-                                                    color = 'rgb(82,82,82)',
-                                                    size = 12
-                                                  )
+                                                        family = 'Arial',
+                                                        color = 'rgb(82,82,82)',
+                                                        size = 12
+                                                    )
                     
                         ),
                         yaxis = dict(
@@ -97,43 +98,44 @@ def weights_vs_c(
                                     linewidth = 0.5,
                                     ticks = 'outside',
                                     tickfont =dict(
-                                                    family = 'Arial',
-                                                    color = 'rgb(82,82,82)',
-                                                    size = 12
-                                                  )
+                                                        family = 'Arial',
+                                                        color = 'rgb(82,82,82)',
+                                                        size = 12
+                                                    )
                     
                         ),
                         autosize = False,
                         width=1000,
                         height = 600,
                         margin = dict(
-                                      autoexpand = True,
-                                      l= 70,
-                                      r = 120,
-                                      t = 60,
-                                      b = 60
-                                      ),
+                                        autoexpand = True,
+                                        l= 70,
+                                        r = 120,
+                                        t = 60,
+                                        b = 60
+                                    ),
                         showlegend = False,
                         plot_bgcolor = None ,
                         legend = dict(
-                                      bgcolor = 'white',
-                                      bordercolor = 'black',
-                                      borderwidth = 0.5,
-                                      title = dict(
+                                        bgcolor = 'white',
+                                        bordercolor = 'black',
+                                        borderwidth = 0.5,
+                                        title = dict(
                                                     font = dict(
-                                                                family = 'Arial',
-                                                                color = 'black',
-                                                                size = 16
-                                                              ),
+                                                                    family = 'Arial',
+                                                                    color = 'black',
+                                                                    size = 16
+                                                                ),
                                                     side = 'top'
                                                     ),
-                                      font = dict(
-                                                    family = 'Arial',
-                                                    color = 'rgb(82,82,82)',
-                                                    size = 12
-                                                  )
+                                        font = dict(
+                                                        family = 'Arial',
+                                                        color = 'rgb(82,82,82)',
+                                                        size = 12
+                                                    )
 
-                                      ))
+                                        )
+                        )
     fig.show()
 
 """
