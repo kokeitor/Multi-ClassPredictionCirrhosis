@@ -155,11 +155,11 @@ class Eda:
 
     Parametros
     ----------
-      None
+      - None
 
     Retorna
     -------
-      None
+      - None
 
     """
     #Recorre todas las columnas comprueba que es una feature categorica y si es asi extrae la informacion
