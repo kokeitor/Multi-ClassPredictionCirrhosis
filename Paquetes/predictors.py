@@ -7,7 +7,7 @@ from Paquetes.optimization import execution_time
 import plotly.graph_objs as go
 
 """
- USO DE LA LIBRERIA TYPING :
+USO DE LA LIBRERIA TYPING :
 
 Ejemplo 1 :
     from typing import  Sequence
