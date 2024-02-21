@@ -1,0 +1,2 @@
+SMOTE IMPLEMENTATION WITH https://github.com/scikit-learn-contrib/imbalanced-learn:
+https://machinelearningmastery.com/smote-oversampling-for-imbalanced-classification/
