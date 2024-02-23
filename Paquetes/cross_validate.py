@@ -5,18 +5,18 @@ from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import explained_variance_score
 from sklearn.model_selection import cross_validate,KFold,StratifiedKFold
 from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score
-from typing import List,Dict
+from typing import List,Dict,Optional
 from sklearn.pipeline import Pipeline
 
 def cv_function( 
-                    X :  pd.DataFrame ,
-                    y :  pd.Series , 
+                    X_train :  pd.DataFrame ,
+                    y_train :  pd.Series , 
                     pipelines : List[Pipeline] = [], 
                     n_splits : int = 10,
                     metrics : List[str] = [],
                     cv_strategies: List[str] = [] 
                     
-                ) -> Dict[pd.DataFrame]:
+                ) -> Dict[str,pd.DataFrame]:
     """
     Funcion para comparar diferentes cv stratategies aplicando diferentes metricas para un mismo pipeline
 
@@ -27,6 +27,7 @@ def cv_function(
                               | Posibles valores : ["neg_mean_absolute_error","neg_root_mean_squared_error","r2", ...]
         - cv_strategies : List[str] | Nombres de las estrategias de validacion cruzada
                                     | Posibles valores : ["k-folds","Stratified K-folds","TimeSeriesSplit",...]
+        - n_splits : int = 10 | numero de splits para estrategia de validacion 
         - x : pd.DataFrame | X set
         - y : pd.DataFrame | y set 
 
@@ -47,21 +48,23 @@ def cv_function(
                             "TimeSeriesSplit" : tscv
                         }
 
+
     if cv_strategies != [] and metrics != []:
         
         if pipelines != []:
             dict_scores =  {}
             
-            for _ , pipe in enumerate(pipelines):
+            for pipe_indx , pipe in enumerate(pipelines):
                 
                 # Dataframe columns names
-                train_column_names = [f"Test {score}" for score in metrics]
-                test_column_names = [f"Train {score}" for score in metrics]
+                train_column_names = [f"Val {score}" for score in metrics]
+                val_column_names = [f"Train {score}" for score in metrics]
+                test_scores_column_names = [f"Test {score}" for score in metrics]
                 
                 # Initializing score Dataframe
                 test_scores = pd.DataFrame(
-                                        index = [cv_s for cv_s in cv_strategies],
-                                        columns = train_column_names + test_column_names,
+                                        index =  [str(pipe.__class__).split('.')[-1][0:len(str(pipe.__class__).split('.')[-1])-2]] + train_column_names + val_column_names + test_scores_column_names,
+                                        columns = [cv_s for cv_s in cv_strategies],
                                         )
 
                 for _ , cv_name in enumerate(cv_strategies):
@@ -71,27 +74,29 @@ def cv_function(
                     if cv != None:
                         cv_dict = cross_validate(   
                                                     pipe, 
-                                                    X, 
-                                                    y, 
+                                                    X_train, 
+                                                    y_train, 
                                                     return_estimator = True,
+                                                    return_train_score = True,
                                                     scoring = metrics, 
                                                     cv = cv,
                                                     error_score = 'raise',
                                                     n_jobs = -1
                                                 )
+                        
 
                         for score in metrics:
                             
                             # Filling dataframe
-                            test_scores.loc[cv_name , f"Test {score}" ] = np.mean(cv_dict[f"test_{score}"])
-                            test_scores.loc[cv_name , f"Train {score}" ] = np.mean(cv_dict[f"train_{score}"])
+                            test_scores.loc[f"Val {score}" ,cv_name] = np.mean(cv_dict[f"test_{score}"])
+                            test_scores.loc[f"Train {score}" ,cv_name] = np.mean(cv_dict[f"train_{score}"])
                             
                     else: 
                         print(f"Error : {cv_name} strategy is not defined")
                         
                         
                 # Introduccion de df informativo dentro de dict
-                dict_scores[f"Pipeline for {cv_dict["estimator"]}"] = test_scores
+                dict_scores[f"Pipeline : {pipe_indx}"] = test_scores
 
             return dict_scores
         else:
