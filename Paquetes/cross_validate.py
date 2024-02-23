@@ -53,11 +53,15 @@ def cv_function(
             dict_scores =  {}
             
             for _ , pipe in enumerate(pipelines):
-
-                # Initializing info dataframe
+                
+                # Dataframe columns names
+                train_column_names = [f"Test {score}" for score in metrics]
+                test_column_names = [f"Train {score}" for score in metrics]
+                
+                # Initializing score Dataframe
                 test_scores = pd.DataFrame(
                                         index = [cv_s for cv_s in cv_strategies],
-                                        columns = [f"test {score} mean" for score in metrics] ,
+                                        columns = train_column_names + test_column_names,
                                         )
 
                 for _ , cv_name in enumerate(cv_strategies):
@@ -79,7 +83,9 @@ def cv_function(
                         for score in metrics:
                             
                             # Filling dataframe
-                            test_scores.loc[cv_name , f"validation {score} mean" ] = np.mean(cv_dict[f"test_{score}"])
+                            test_scores.loc[cv_name , f"Test {score}" ] = np.mean(cv_dict[f"test_{score}"])
+                            test_scores.loc[cv_name , f"Train {score}" ] = np.mean(cv_dict[f"train_{score}"])
+                            
                     else: 
                         print(f"Error : {cv_name} strategy is not defined")
                         
