@@ -14,7 +14,7 @@ def cv_function(
                     pipelines : List[Pipeline] = [], 
                     n_splits : int = 10,
                     metrics : List[str] = [],
-                    cv_strategies: List[str] = [] 
+                    cv_strategies: List[str] = [],
                     
                 ) -> Dict[str,pd.DataFrame]:
     """
