@@ -6,9 +6,10 @@ import plotly.figure_factory as ff
 from typing import  Callable, Optional, List, Dict, Tuple
 from Paquetes.optimization import execution_time
 
+
 # Metrics for clasification problems 
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score,roc_auc_score,roc_curve,confusion_matrix,jaccard_score
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix,ConfusionMatrixDisplay
 
 @execution_time
 def clasification_metrics(
@@ -21,41 +22,35 @@ def clasification_metrics(
                             metrics : List[str] = ["Accuracy"],
                             plot_roc_curve  : bool = False,
                             plot_confusion_matrix  : bool = False,
-                            class_names : List[str] = []
+                            
                         ) -> List[pd.DataFrame]:
     """
-    Devuelve dataframes para cada clasifier con las metricas especificadas y aplicadas a las prediciones (por defecto, si no varia el valor del aprametro "average" la funcion
+    Devuelve dataframes para cada clasifier con las metricas especificadas y aplicadas a las prediciones (por defecto, si no varia el valor del parametro "average" la funcion
     toma el clasificador como binario). Capaz de aplicar la predicion (y logiacamente las métricas) al conjunto de test y train.
     Por defecto a no ser que el parametro 'average' se inicialize o se establezca como in argument debe pasarse un clasificador entrenado y binario 
     es decir, y_pred debe contener 0 y 1. Si 'average' se define, se pueden usar varios criterios para el caluclo de metricas para problema multiclase (micro,macro,ponderado,etc).
-    En este caso el claifioer tambien debe ser entrenado y debe ser un clasifier multiclase.
+    En este caso el clasifier tambien debe ser entrenado y debe ser un clasifier multiclase.
     Si 'average' se define no estan disponibles todas las metricas del caso binario, por ejemplo: no se plotea la ROC curve, dado que habria una ROC curve por target label.
     
     Paramaters
     ----------
-        - y_train : np.ndarray 
-                    Real target train labels
-        - x_train : np.ndarray 
-        - clasifier : List[object]
-        - average : Optional[str]
-                    ['micro','macro','samples', 'weighted','binary'== ""]
-        - y_test : np.ndarray
-                    Real target test labels
+        - y_train : np.ndarray | Real target train labels
+        - x_train : np.ndarray | Train set
+        - clasifier : List[object] | Fitted list of estimator objects
+        - average : Optional[str] | ['micro','macro','samples', 'weighted','binary'== ""]
+        - y_test : np.ndarray | Real target test labels
         - x_test : np.ndarray 
-        - metrics : List[str]
-                    Default "Accuracy"
-        - plot_roc_curve: bool
-                        plot de roc curve (and area under the curve). Note: only apply to binary clasification and test set
-        - plot_confusion_matrix  : bool 
-                                    Note: only apply to binary clasification and test y train sets
-        - class_names : List[str] 
+        - metrics : List[str] | Default "Accuracy" ["Accuracy","Recall" ,"Precision","F1Score","RocCurveArea","TN","FP","FN","TP","Especificidad" , "JaccardIndex" ]
+        - plot_roc_curve: bool | Flag for plot de roc curve (and area under the curve). Only apply to binary clasification and test set
+        - plot_confusion_matrix  : bool | Only apply to test y train sets
+        
     Return
     ------
-        - List[pd.DataFrame] : 
-        Lista de df con las metricas en columnas y los dataset donde las aplica en filas (train y test)
+        - List[pd.DataFrame] | Lista de df con las metricas en columnas y los dataset donde las aplica en filas (train y test)
 
     """
-    # Multilabel clasification metrics 8 average != None o binary)
+    
+    # Multilabel clasification metrics (average != None o binary)
     if average != None:
         # Loop for all the passed predictors
         clasifiers_metrics = []
@@ -74,7 +69,7 @@ def clasification_metrics(
             df_results = pd.DataFrame( 
                                         data = [],
                                         columns = [k for k in scores_mapping.keys()],
-                                        index = ["Train", "Test"]
+                                        index = [str(clsf.__class__).split('.')[-1][0:len(str(clsf.__class__).split('.')[-1])-2],"Train", "Test"]
                                 )
 
             # For test set if it is defined
@@ -109,12 +104,36 @@ def clasification_metrics(
                     df_results.loc["Test",f"{key}"] = value
 
             clasifiers_metrics.append(df_results)
+        
+            if plot_confusion_matrix:
+                disp_train = ConfusionMatrixDisplay.from_estimator(
+                                                                        estimator=clsf,
+                                                                        X =x_train,
+                                                                        y= y_train,
+                                                                        labels = clsf.classes_,
+                                                                        include_values = True,
+                                                                        cmap = "Blues",
+                                                                    )
+                disp_train.ax_.set_title(f"{str(clsf.__class__).split('.')[-1][0:len(str(clsf.__class__).split('.')[-1])-2]} Confusion Train Matrix")
+                
+                if y_test.shape[0] != 0 and x_test.shape[0] != 0:
+                    disp_test = ConfusionMatrixDisplay.from_estimator(
+                                                                        estimator=clsf,
+                                                                        X =x_test,
+                                                                        y= y_test,
+                                                                        labels = clsf.classes_,
+                                                                        include_values = True,
+                                                                        cmap = "Reds",
+                                                                    )
+                    disp_test.ax_.set_title(f"{str(clsf.__class__).split('.')[-1][0:len(str(clsf.__class__).split('.')[-1])-2]} Confusion Test Matrix")
+            
             
     # Binary clasification metrics (average no se ha definido y por defecto es == 'binary' para las funciones que calculan las metricas)
     else:
         # Loop for all the passed predictors
         clasifiers_metrics = []
         for clsf in clasifier:
+            
             # Calculate confusion matrix
             tn,fp,fn,tp = confusion_matrix(y_true = y_train,  y_pred = clsf.predict(x_train)).ravel()
             
@@ -137,7 +156,7 @@ def clasification_metrics(
             df_results = pd.DataFrame( 
                                         data = [],
                                         columns = [k for k in scores_mapping.keys()],
-                                        index = ["Train", "Test"]
+                                        index = [str(clsf.__class__).split('.')[-1][0:len(str(clsf.__class__).split('.')[-1])-2],"Train", "Test"]
                                 )
             # For test set if it is defined
             metrics_test_aux = []
@@ -282,7 +301,7 @@ def clasification_metrics(
 
                 # Calculate confusion matrix for x train
                 c_matrix = confusion_matrix(y_true = y_train,  y_pred = clsf.predict(x_train))
-                class_names = class_names if class_names != [] else ["0","1"]
+                class_names = list(clsf.classes_)
 
                 # Crear la matriz de confusión usando Plotly
                 fig = ff.create_annotated_heatmap(
@@ -373,7 +392,7 @@ def clasification_metrics(
 
                 # Calculate confusion matrix for x train
                 c_matrix = confusion_matrix(y_true = y_test,  y_pred = clsf.predict(x_test))
-                class_names = class_names if class_names != [] else ["0","1"]
+                class_names = list(clsf.classes_)
 
                 # Crear la matriz de confusión usando Plotly
                 fig = ff.create_annotated_heatmap(

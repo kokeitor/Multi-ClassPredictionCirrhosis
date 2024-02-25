@@ -3,18 +3,21 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import explained_variance_score
-from sklearn.model_selection import cross_validate,KFold,StratifiedKFold
+from sklearn.model_selection import cross_validate,KFold,StratifiedKFold,LeaveOneGroupOut,GroupKFold,RepeatedKFold,RepeatedStratifiedKFold
 from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score
 from typing import List,Dict,Optional
 from sklearn.pipeline import Pipeline
 
 def cv_function( 
-                    X_train :  pd.DataFrame ,
-                    y_train :  pd.Series , 
+                    X_train :  np.ndarray ,
+                    y_train :  np.ndarray , 
                     pipelines : List[Pipeline] = [], 
                     n_splits : int = 10,
                     metrics : List[str] = [],
                     cv_strategies: List[str] = [],
+                    random_state : int = 0,
+                    shuffle : bool = False,
+                    group_by : np.ndarray = np.zeros(shape = 0),
                     
                 ) -> Dict[str,pd.DataFrame]:
     """
@@ -28,8 +31,11 @@ def cv_function(
         - cv_strategies : List[str] | Nombres de las estrategias de validacion cruzada
                                     | Posibles valores : ["k-folds","Stratified K-folds","TimeSeriesSplit",...]
         - n_splits : int = 10 | numero de splits para estrategia de validacion 
-        - x : pd.DataFrame | X set
-        - y : pd.DataFrame | y set 
+        - x : np.ndarray| X set
+        - y : np.ndarray| y set 
+        - random_state : int = 0 | Random Seed 
+        - shuffle : bool = False | Shuffle data before splitting
+        - group_by : Optional[np.ndarray] | Array of the dataframe with classes to group splits using GroupKFold strategy
 
     Retorna
     -------
@@ -38,14 +44,29 @@ def cv_function(
     """
 
     # Estrategias de validacion cruzada
-    kf = KFold(n_splits = n_splits)
-    skf = StratifiedKFold(n_splits = n_splits)
-    tscv = TimeSeriesSplit(n_splits=n_splits)
+    if shuffle:
+        kf = KFold(n_splits = n_splits, shuffle = True ,random_state = random_state)
+        skf = StratifiedKFold(n_splits = n_splits,shuffle = True, random_state = random_state)
+
+    else: 
+        kf = KFold(n_splits = n_splits, shuffle = False)
+        skf = StratifiedKFold(n_splits = n_splits, shuffle = False)
+        
+    tscv = TimeSeriesSplit(n_splits = n_splits )
+    lvo = LeaveOneGroupOut()
+    g_kf = GroupKFold(n_splits = n_splits)
+    r_kf = RepeatedKFold(n_splits = n_splits, n_repeats = 10 ,random_state = random_state)
+    r_skf = RepeatedStratifiedKFold(n_splits = n_splits, n_repeats = 10, random_state =random_state)
+        
 
     cv_strategies_dict = {
                             "k-folds" : kf,
                             "Stratified K-folds" : skf,
-                            "TimeSeriesSplit" : tscv
+                            "TimeSeriesSplit" : tscv,
+                            "LeaveOneGroupOut" : lvo,
+                            "GroupKFold":g_kf,
+                            "RepeatedKFold" : r_kf,
+                            "RepeatedStratifiedKFold": r_skf,
                         }
 
 
@@ -59,11 +80,11 @@ def cv_function(
                 # Dataframe columns names
                 train_column_names = [f"Val {score}" for score in metrics]
                 val_column_names = [f"Train {score}" for score in metrics]
-                test_scores_column_names = [f"Test {score}" for score in metrics]
+
                 
                 # Initializing score Dataframe
                 test_scores = pd.DataFrame(
-                                        index =  [str(pipe.__class__).split('.')[-1][0:len(str(pipe.__class__).split('.')[-1])-2]] + train_column_names + val_column_names + test_scores_column_names,
+                                        index =  [str(pipe.__class__).split('.')[-1][0:len(str(pipe.__class__).split('.')[-1])-2]] + train_column_names + val_column_names ,
                                         columns = [cv_s for cv_s in cv_strategies],
                                         )
 
@@ -72,17 +93,34 @@ def cv_function(
                     cv = cv_strategies_dict.get(cv_name)
                     
                     if cv != None:
-                        cv_dict = cross_validate(   
-                                                    pipe, 
-                                                    X_train, 
-                                                    y_train, 
-                                                    return_estimator = True,
-                                                    return_train_score = True,
-                                                    scoring = metrics, 
-                                                    cv = cv,
-                                                    error_score = 'raise',
-                                                    n_jobs = -1
-                                                )
+                        print(cv, cv_name)
+                        print(group_by.shape[0])
+                        print(group_by)
+                        if group_by.shape[0] != 0 and cv_name == "GroupKFold":
+                            cv_dict = cross_validate(   
+                                                        pipe, 
+                                                        X_train, 
+                                                        y_train, 
+                                                        groups = group_by,
+                                                        return_estimator = True,
+                                                        return_train_score = True,
+                                                        scoring = metrics, 
+                                                        cv = cv,
+                                                        error_score = 'raise',
+                                                        n_jobs = -1
+                                                    )
+                        else:
+                            cv_dict = cross_validate(   
+                                                        pipe, 
+                                                        X_train, 
+                                                        y_train, 
+                                                        return_estimator = True,
+                                                        return_train_score = True,
+                                                        scoring = metrics, 
+                                                        cv = cv,
+                                                        error_score = 'raise',
+                                                        n_jobs = -1
+                                                    )
                         
 
                         for score in metrics:
