@@ -35,7 +35,7 @@ def cv_function(
         - y : np.ndarray| y set 
         - random_state : int = 0 | Random Seed 
         - shuffle : bool = False | Shuffle data before splitting
-        - group_by : Optional[np.ndarray] | Array of the dataframe with classes to group splits using GroupKFold strategy
+        - group_by : Optional[np.ndarray] | Array of the dataframe to group splits using GroupKFold strategy
 
     Retorna
     -------
@@ -55,8 +55,8 @@ def cv_function(
     tscv = TimeSeriesSplit(n_splits = n_splits )
     lvo = LeaveOneGroupOut()
     g_kf = GroupKFold(n_splits = n_splits)
-    r_kf = RepeatedKFold(n_splits = n_splits, n_repeats = 10 ,random_state = random_state)
-    r_skf = RepeatedStratifiedKFold(n_splits = n_splits, n_repeats = 10, random_state =random_state)
+    r_kf = RepeatedKFold(n_splits = n_splits, n_repeats = 6 ,random_state = random_state)
+    r_skf = RepeatedStratifiedKFold(n_splits = n_splits, n_repeats = 6, random_state =random_state)
         
 
     cv_strategies_dict = {
@@ -93,27 +93,41 @@ def cv_function(
                     cv = cv_strategies_dict.get(cv_name)
                     
                     if cv != None:
-                        print(cv, cv_name)
-                        print(group_by.shape[0])
-                        print(group_by)
-                        if group_by.shape[0] != 0 and cv_name == "GroupKFold":
-                            cv_dict = cross_validate(   
-                                                        pipe, 
-                                                        X_train, 
-                                                        y_train, 
-                                                        groups = group_by,
-                                                        return_estimator = True,
-                                                        return_train_score = True,
-                                                        scoring = metrics, 
-                                                        cv = cv,
-                                                        error_score = 'raise',
-                                                        n_jobs = -1
-                                                    )
+                        
+                        if cv_name in ["GroupKFold","RepeatedKFold","LeaveOneGroupOut"]:
+
+                            if group_by.shape[0] != 0:
+                                
+                                try: 
+                                    cv_dict = cross_validate(   
+                                                                estimator = pipe, 
+                                                                X = X_train, 
+                                                                y = y_train, 
+                                                                groups = group_by,
+                                                                return_estimator = True,
+                                                                return_train_score = True,
+                                                                scoring = metrics, 
+                                                                cv = cv,
+                                                                error_score = 'raise',
+                                                                n_jobs = -1
+                                                            )
+                                    
+                                    for score in metrics:
+                                        
+                                        # Filling dataframe
+                                        test_scores.loc[f"Val {score}" ,cv_name] = round(np.mean(cv_dict[f"test_{score}"]),3)
+                                        test_scores.loc[f"Train {score}" ,cv_name] = round(np.mean(cv_dict[f"train_{score}"]),3)
+                                        
+                                except:
+                                    print(f"ValueError : group_by bad defined for {cv_name} strategy applied to {str(pipe.__class__).split('.')[-1][0:len(str(pipe.__class__).split('.')[-1])-2]}")
+                            else:
+                                print(f"group_by parameter is not defined for {cv_name} strategy applied to {str(pipe.__class__).split('.')[-1][0:len(str(pipe.__class__).split('.')[-1])-2]}")
+
                         else:
                             cv_dict = cross_validate(   
-                                                        pipe, 
-                                                        X_train, 
-                                                        y_train, 
+                                                        estimator = pipe, 
+                                                        X = X_train, 
+                                                        y= y_train, 
                                                         return_estimator = True,
                                                         return_train_score = True,
                                                         scoring = metrics, 
@@ -121,13 +135,12 @@ def cv_function(
                                                         error_score = 'raise',
                                                         n_jobs = -1
                                                     )
-                        
 
-                        for score in metrics:
-                            
-                            # Filling dataframe
-                            test_scores.loc[f"Val {score}" ,cv_name] = np.mean(cv_dict[f"test_{score}"])
-                            test_scores.loc[f"Train {score}" ,cv_name] = np.mean(cv_dict[f"train_{score}"])
+                            for score in metrics:
+                                
+                                # Filling dataframe
+                                test_scores.loc[f"Val {score}" ,cv_name] = round(np.mean(cv_dict[f"test_{score}"]),3)
+                                test_scores.loc[f"Train {score}" ,cv_name] = round(np.mean(cv_dict[f"train_{score}"]),3)
                             
                     else: 
                         print(f"Error : {cv_name} strategy is not defined")
