@@ -20,7 +20,7 @@ Ejemplo 1 :
 Ejemplo 2 :
     from typing import  Tuple, List
     elems_list: List[float]  = [1.0, 2.0]
-    elems_tuple: List[float,str] = (1.0, "hola")
+    elems_tuple: Tuple[float,str] = (1.0, "hola")
 
     Explicacion:
     En este caso "elems_list" es una lista de flotantes donde por ser una lista (iterable o secuencia mutable) normalmente estan constituidas por varios elementos del mismo tipo y por ello
