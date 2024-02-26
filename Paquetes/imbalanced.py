@@ -1,5 +1,5 @@
 from sklearn.utils import resample
-from imblearn.over_sampling import SMOTE,ADASYN,BorderlineSMOTE,SVMSMOTE
+from imblearn.over_sampling import SMOTE,ADASYN,BorderlineSMOTE,SVMSMOTE,SMOTENC
 from typing import Tuple
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
