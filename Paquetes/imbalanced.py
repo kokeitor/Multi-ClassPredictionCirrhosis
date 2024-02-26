@@ -1,5 +1,5 @@
 from sklearn.utils import resample
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE,ADASYN,BorderlineSMOTE,SVMSMOTE
 from typing import Tuple
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
@@ -18,7 +18,7 @@ def synthetic_resample(
         X (np.ndarray): 
         y (np.ndarray): y array should be labely codify previously : ["class0","class1",...] -> [0,1,2,...]
         ratio (float): ratio of resampling compared with more frequent class
-        technique (str): technique for resampling : ["SMOTE", "oversampling","undersampling"]
+        technique (str): technique for resampling : ["SMOTE", "oversampling","undersampling","ADASYN","BorderlineSMOTE","SVMSMOTE"]
         verbose (int): 1 fore extra information. Defaults to 0. 
         random_state (int): random state. Defaults to 1.
 
@@ -86,10 +86,33 @@ def synthetic_resample(
                                             k_neighbors=5,
                                             ), 
                             "oversampling": None, 
-                            "undersampling" :None
+                            "undersampling" :None,
+                            "ADASYN": ADASYN(
+                                            sampling_strategy = smote_class_samples,
+                                            random_state=random_state,
+                                            n_neighbors=5,
+                                            ), 
+                            "BorderlineSMOTE": BorderlineSMOTE(
+                                                                sampling_strategy = smote_class_samples,
+                                                                random_state=random_state,
+                                                                k_neighbors=5,
+                                                                m_neighbors = 10,
+                                                                kind = "borderline-1"
+                                                                ), 
+                            "SVMSMOTE": SVMSMOTE(
+                                                sampling_strategy = smote_class_samples,
+                                                random_state=random_state,
+                                                k_neighbors=5,
+                                                m_neighbors = 10,
+                                                out_step = 0.5
+                                            ), 
+                            
                         }
     # Resampling
     if (tool := resampling_options.get(technique)) !=  None:
+        if verbose ==1:
+            print("-----------------------------------------------------------")
+            print(F"Using: {technique} resampling technique")
         X_resampled, y_resampled= tool.fit_resample(X, y)
     elif (tool := resampling_options.get(technique)) == None and technique == "oversampling":
         X_resampled, y_resampled = resample(
@@ -170,17 +193,22 @@ def testing() -> None:
                             X = x,
                             y  = y,
                             ratio = 0.5 ,
-                            technique = "oversampling",
+                            technique = "ADASYN",
                             verbose  = 1
                             )
-
     x_new , y_new = synthetic_resample(
-                            X = x,
-                            y  = y,
-                            ratio = 0.5 ,
-                            technique = "undersampling",
-                            verbose  = 1
-                            )
-    
+                        X = x,
+                        y  = y,
+                        ratio = 0.5 ,
+                        technique = "SVMSMOTE",
+                        verbose  = 1
+                        )
+    x_new , y_new = synthetic_resample(
+                    X = x,
+                    y  = y,
+                    ratio = 0.5 ,
+                    technique = "BorderlineSMOTE",
+                    verbose  = 1
+                    )
 if __name__ == "__main__":
     testing()

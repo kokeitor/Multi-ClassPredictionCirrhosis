@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import plotly.figure_factory as ff
 from typing import  Callable, Optional, List, Dict, Tuple
 from Paquetes.optimization import execution_time
-
+from imblearn.metrics import geometric_mean_score
 
 # Metrics for clasification problems 
 from sklearn.metrics import accuracy_score,precision_score,recall_score,f1_score,roc_auc_score,roc_curve,confusion_matrix,jaccard_score
@@ -40,7 +40,7 @@ def clasification_metrics(
         - average : Optional[str] | ['micro','macro','samples', 'weighted','binary'== ""]
         - y_test : np.ndarray | Real target test labels
         - x_test : np.ndarray 
-        - metrics : List[str] | Default "Accuracy" ["Accuracy","Recall" ,"Precision","F1Score","RocCurveArea","TN","FP","FN","TP","Especificidad" , "JaccardIndex" ]
+        - metrics : List[str] | Default "Accuracy" ["Accuracy","Recall" ,"Precision","F1Score","RocCurveArea","TN","FP","FN","TP","Especificidad" , "JaccardIndex","geometric_mean_score"]
         - plot_roc_curve: bool | Flag for plot de roc curve (and area under the curve). Only apply to binary clasification and test set
         - plot_confusion_matrix  : bool | Only apply to test y train sets
         
@@ -61,7 +61,8 @@ def clasification_metrics(
                                     "Recall" : recall_score(y_true = y_train, y_pred = clsf.predict(x_train),average= average ),
                                     "Precision": precision_score(y_true = y_train, y_pred = clsf.predict(x_train), average= average),
                                     "F1Score": f1_score(y_true = y_train, y_pred = clsf.predict(x_train), average= average),
-                                    "JaccardIndex" :  jaccard_score(y_true = y_train, y_pred = clsf.predict(x_train),average= average)
+                                    "JaccardIndex" :  jaccard_score(y_true = y_train, y_pred = clsf.predict(x_train),average= average),
+                                    "geometric_mean_score": geometric_mean_score(y_true = y_train, y_pred = clsf.predict(x_train), average = average)
 
                             }
             
@@ -78,10 +79,11 @@ def clasification_metrics(
 
                 # Dict to map the input str arguments to the score/metric objects
                 scores_mapping_test = {
-                                    "Recall" : recall_score(y_true = y_test, y_pred = clsf.predict(x_test),average= average ),
-                                    "Precision": precision_score(y_true = y_test, y_pred = clsf.predict(x_test), average= average),
-                                    "F1Score": f1_score(y_true = y_test, y_pred = clsf.predict(x_test), average= average),
-                                    "JaccardIndex" :  jaccard_score(y_true = y_test, y_pred = clsf.predict(x_test),average= average)
+                                            "Recall" : recall_score(y_true = y_test, y_pred = clsf.predict(x_test),average= average ),
+                                            "Precision": precision_score(y_true = y_test, y_pred = clsf.predict(x_test), average= average),
+                                            "F1Score": f1_score(y_true = y_test, y_pred = clsf.predict(x_test), average= average),
+                                            "JaccardIndex" :  jaccard_score(y_true = y_test, y_pred = clsf.predict(x_test),average= average),
+                                            "geometric_mean_score": geometric_mean_score(y_true = y_test, y_pred = clsf.predict(x_test), average = average)
                                         }
             
                 # Mapping the str metrics with the values (obj metrics) in the dictionary using: List Comprehension
@@ -149,7 +151,8 @@ def clasification_metrics(
                                 "FN":fn, 
                                 "TP" :tp ,
                                 "Especificidad" :  tn / tn + tp,
-                                "JaccardIndex" :  jaccard_score(y_true = y_train, y_pred = clsf.predict(x_train))
+                                "JaccardIndex" :  jaccard_score(y_true = y_train, y_pred = clsf.predict(x_train)),
+                                "geometric_mean_score": geometric_mean_score(y_true = y_train, y_pred = clsf.predict(x_train), average = 'binary')
                             }
             
             # Datafrane creation 
