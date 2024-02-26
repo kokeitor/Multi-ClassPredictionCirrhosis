@@ -1,6 +1,6 @@
 from sklearn.utils import resample
 from imblearn.over_sampling import SMOTE
-from typing import Tuple,List,Optional
+from typing import Tuple
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
@@ -19,7 +19,7 @@ def synthetic_resample(
         y (np.ndarray): y array should be labely codify previously : ["class0","class1",...] -> [0,1,2,...]
         ratio (float): ratio of resampling compared with more frequent class
         technique (str): technique for resampling : ["SMOTE", "oversampling","undersampling"]
-        verbose (int, optional): 1 fore extra information. Defaults to 0. 
+        verbose (int): 1 fore extra information. Defaults to 0. 
         random_state (int): random state. Defaults to 1.
 
     Returns:
