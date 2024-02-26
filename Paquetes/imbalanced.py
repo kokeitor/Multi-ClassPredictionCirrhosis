@@ -40,8 +40,8 @@ def synthetic_resample(
         raise ValueError("X and y should have the same number of samples")
         
     if verbose == 1:
-        print(f"y input type : {y.dtype}","y input shape : ",y.shape)
-        print(f"X input type : {X.dtype}","X input shape : ", X.shape)
+        print(f"y input type : {y.dtype}"," | y input shape : ",y.shape)
+        print(f"X input type : {X.dtype}","| X input shape : ", X.shape)
     old_classes = np.unique(y)
     
     if not _is_numeric(y)[0]:
@@ -55,8 +55,7 @@ def synthetic_resample(
         
     if not _is_numeric(X)[0]:
         raise ValueError(f"X {_is_numeric(X)[1]}")
-    else:
-        print(f"X {_is_numeric(X)[1]}")
+
         
     if verbose == 1:
         print("-----------------------------------------------------------")
@@ -118,8 +117,9 @@ def synthetic_resample(
         raise ValueError(f"{technique} is not a valid resampling technique")
     
     if verbose == 1:
-        print(X_resampled.shape, y_resampled.shape)
         print("-----------------------------------------------------------")
+        print("X resampled shape : ", X_resampled.shape)
+        print("y resampled shape : ", y_resampled.shape)
         print(f"New dataset number of samples : {X_resampled.shape[0]}")
         print(f"% of increment compare to original dataset : {100*(X_resampled.shape[0]-X.shape[0])/X.shape[0]:.2f} %")
         print("Target classes : ", np.unique(y_resampled))
@@ -166,13 +166,14 @@ def testing() -> None:
                             technique = "SMOTE",
                             verbose  = 1
                             )"""
-    """    x_new , y_new = synthetic_resample(
+    x_new , y_new = synthetic_resample(
                             X = x,
                             y  = y,
                             ratio = 0.5 ,
                             technique = "oversampling",
                             verbose  = 1
-                            )"""
+                            )
+
     x_new , y_new = synthetic_resample(
                             X = x,
                             y  = y,
@@ -180,6 +181,6 @@ def testing() -> None:
                             technique = "undersampling",
                             verbose  = 1
                             )
-
+    
 if __name__ == "__main__":
     testing()
