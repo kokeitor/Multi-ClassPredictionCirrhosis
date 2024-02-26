@@ -25,7 +25,7 @@ def synthetic_resample(
     Returns:
         Tuple[np.ndarray,np.ndarray]: --> x_resample, y_resample
     """
-    # Checking data types
+    # Checking types (or class) of input arguments X and y
     if not isinstance(X, (list,np.ndarray)) or not isinstance(y,(list,np.ndarray)):
         raise TypeError("X and/or y should be an array-like object (list or numpy array)")
     
@@ -34,13 +34,19 @@ def synthetic_resample(
         X = np.array(X)
     if isinstance(y,(list)): 
         y = np.array(y)
-    
-    print(f"y type : {y.dtype}",y)
-    print(f"X type : {X.dtype}",X)
+        
+    # Check size of X and y
+    if y.shape[0] != X.shape[0]:
+        raise ValueError("X and y should have the same number of samples")
+        
+    if verbose == 1:
+        print(f"y input type : {y.dtype}","y input shape : ",y.shape)
+        print(f"X input type : {X.dtype}","X input shape : ", X.shape)
     old_classes = np.unique(y)
     
     if not _is_numeric(y)[0]:
-        print(f"TypeError : y {_is_numeric(y)[1]} , y should be codify previously \nNote: A label encoding will be applied to y")
+        print("-----------------------------------------------------------")
+        print(f"ValueError : y contains {y.dtype} data types and y array should contain number data types\nNote: A label encoding will be applied to y")
         y = LabelEncoder().fit_transform(y)
         if verbose == 1:
             print(f"y new type : {y.dtype}")
@@ -48,35 +54,43 @@ def synthetic_resample(
             print(f"y new codify classes : {np.unique(y)}")
         
     if not _is_numeric(X)[0]:
-        raise TypeError(f"X {_is_numeric(X)[1]}")
+        raise ValueError(f"X {_is_numeric(X)[1]}")
     else:
         print(f"X {_is_numeric(X)[1]}")
         
     if verbose == 1:
         print("-----------------------------------------------------------")
-        print(f"Original dataset number of samples : {X.shape[0] :.2f} ")
+        print(f"Original dataset number of samples : {X.shape[0]}")
         print("Classes in the target variable : ", np.unique(y))
         print(f"Class frequencies : {np.bincount(y)}")
         for idx, v in enumerate(np.bincount(y)):
             print(f'Proportion of class {idx} : {100*v/y.shape[0] : .2f}','%')
 
-        
+    # Calculate min class label, max class label and new samples for resample
     min_class = np.argmin(np.bincount(y))
     max_class = np.argmax(np.bincount(y))
     new_class_samples = int(ratio*(np.bincount(y)[max_class]))
     
+    # Dictionary for SMOTE resampling
+    smote_class_samples = {}
+    for class_,class_samples in enumerate(np.bincount(y)):
+        if class_ == min_class:
+            smote_class_samples[class_] = new_class_samples
+        else:
+            smote_class_samples[class_] = class_samples
+        
     # OPTION RESAMPLING DICTIONARY:
     resampling_options = {
                             "SMOTE": SMOTE(
-                                            sampling_strategy = ratio,
+                                            sampling_strategy = smote_class_samples,
                                             random_state=random_state,
+                                            k_neighbors=5,
                                             ), 
                             "oversampling": None, 
                             "undersampling" :None
                         }
     # Resampling
     if (tool := resampling_options.get(technique)) !=  None:
-        print(tool)
         X_resampled, y_resampled= tool.fit_resample(X, y)
     elif (tool := resampling_options.get(technique)) == None and technique == "oversampling":
         X_resampled, y_resampled = resample(
@@ -106,11 +120,12 @@ def synthetic_resample(
     if verbose == 1:
         print(X_resampled.shape, y_resampled.shape)
         print("-----------------------------------------------------------")
+        print(f"New dataset number of samples : {X_resampled.shape[0]}")
         print(f"% of increment compare to original dataset : {100*(X_resampled.shape[0]-X.shape[0])/X.shape[0]:.2f} %")
-        print("New codify classes : ", np.unique(y_resampled))
-        print(f"Class frequencies : {np.bincount(y_resampled)}")
+        print("Target classes : ", np.unique(y_resampled))
+        print(f"New class frequencies : {np.bincount(y_resampled)}")
         for idx, v in enumerate(np.bincount(y_resampled)):
-            print(f'Proportion of class {idx} : {100*v/y_resampled.shape[0] : .2f}','%')
+            print(f'New proportion of class {idx} : {100*v/y_resampled.shape[0] : .2f}','%')
             
     return X_resampled, y_resampled
     
@@ -142,17 +157,29 @@ def _is_numeric(X : np.ndarray) -> Tuple[bool,str]:
         
         
 def testing() -> None:
-    x = np.array([[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5]]).T
-    y = np.array(["a","b","b","b","a"])
-    y =  ["A","B","B","B","A"]
+    y =  ["A","B","B","B","B"]*30
+    x = np.random.rand(len(y),3)
+    """    x_new , y_new = synthetic_resample(
+                            X = x,
+                            y  = y,
+                            ratio = 0.5 ,
+                            technique = "SMOTE",
+                            verbose  = 1
+                            )"""
+    """    x_new , y_new = synthetic_resample(
+                            X = x,
+                            y  = y,
+                            ratio = 0.5 ,
+                            technique = "oversampling",
+                            verbose  = 1
+                            )"""
     x_new , y_new = synthetic_resample(
                             X = x,
                             y  = y,
-                            ratio = 0.7 ,
-                            technique = "SMOTE",
+                            ratio = 0.5 ,
+                            technique = "undersampling",
                             verbose  = 1
                             )
-
 
 if __name__ == "__main__":
     testing()
