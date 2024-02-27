@@ -12,59 +12,202 @@ from typing import  Callable, Optional, List, Dict, Tuple
 
 class PCAStudy:
   
-  def __init__(self, data: pd.DataFrame, encodings: List[object], num_transformers : Optional[List[object]] = None, pca_components: List[int] = [1],verbose : int = 0) -> None:
+  @staticmethod
+  def combined_study(*pca_stduy) -> pd.DataFrame:
+    """combinar dataframes (self.results) de los objetos PCA en un unico datfarame conjunto usando concatenate
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+    if len(pca_stduy) > 0:
+      for idx,pca_study_i in enumerate(pca_stduy):
+        
+        if idx == 0:
+          df_combined = pca_study_i.results
+        else:
+          df_combined = pd.concat([df_combined, pca_study_i.results])
+          
+      return df_combined
+    else:
+      print("Note : Only one PCA study has been provided")
+      return pca_stduy.results
+  
+  def __init__(self, data: pd.DataFrame, encoder : object, pca_components: int , num_transformer : Optional[object] = None,verbose : int = 0) -> None:
     self.data = data
-    self._encodings = encodings
-    self._num_transformers = num_transformers
+    self._encoder = encoder
+    self._num_transformer = num_transformer
     self.pca_components = pca_components
     self.verbose = verbose
+    self._is_fitted = False
     
     if self.pca_components <= 0:
       raise ValueError("The number of PCA components must be > 0")
     
-    if self._num_transformers == None:
+    if self._num_transformer == None:
       self.is_numerical_transformed = False
     else:
       self.is_numerical_transformed = True
     
       
-    @property
-    def encodings(self) -> List[object]:
-      return self._encodings
-    @property
-    def num_transformers(self) -> List[object]:
-      return self._num_transformers
-    
-    @encodings.setter
-    def encodings(self, value: List[object]) -> None:
-      self._encodings = value
-    
-    @num_transformers.setter
-    def num_transformers(self, value: List[object]) -> None:
-      self.num_transformers = value
-      
-    def _initialize_info_df(self) -> pd.DataFrame:
-      """_summary_
-      """
+  @property
+  def encoder(self) -> List[object]:
+    return self._encoder
+  @property
+  def num_transformer(self) -> List[object]:
+    return self._num_transformer
   
-        # Cuando se quiere aplicar una transformacion numerica (Estandarizacion, normalizacion ...)
-      if self.is_numerical_transformed:
-        self.cases_to_study = list(product(set(self._encodings), set(self._num_transformers), set(self.pca_components))) # lista de tuplas de todas posibles combinaciones no repetidas: [(ecoder,transformer,n_pca),(...)]
-        if self.verbose ==1:
-          print('combinations',self.cases_to_study)
-      else: # Cuando no se quiere aplicar una transformacion numerica
-        self.cases_to_study = list(product(set(self._encodings), set(pca_components)))
-        if self.verbose ==1:
-          print('combinations',self.cases_to_study)
-      self.results = pd.DataFrame(
-                                  columns = ['ENCODER','ORIGINAL_FEATURES','NEW_FEATURES','NUMERICAL_TRANSFORMER','PCA_COMPONENTS','ORIGINAL_VARIANCE_RETAINED'], 
-                                  index = range(len(self.cases_to_study))
-                                  )
+  @encoder.setter
+  def encoder(self, value: List[object]) -> None:
+    self._encoder= value
+    
+  @num_transformer.setter
+  def num_transformer(self, value: List[object]) -> None:
+    self.is_numerical_transformed = True
+    self._num_transformer = value
+
+    
+  def _initialize_info_df(self) -> None:
+    """_summary_
+    """
+
+      # Cuando se quiere aplicar una transformacion numerica (Estandarizacion, normalizacion ...)
+    if self.is_numerical_transformed:
+      self.case_to_study = [(self._encoder,self._num_transformer,self.pca_components)] # lista de tupla  [(ecoder,transformer,n_pca)]
+      if self.verbose ==1:
+        print('combinations',self.case_to_study)
+    else: # Cuando no se quiere aplicar una transformacion numerica
+      self.case_to_study = [(self._encoder,self.pca_components)]
+      if self.verbose ==1:
+        print('combinations',self.case_to_study)
+    self.results = pd.DataFrame(
+                                columns = ['ENCODER','ORIGINAL_FEATURES','NEW_FEATURES','NUMERICAL_TRANSFORMER','PCA_COMPONENTS','ORIGINAL_VARIANCE_RETAINED'], 
+                                index = range(len(self.case_to_study))
+                                )
+  @property
+  def study_case(self) -> None:
+    self._initialize_info_df()
+    self._user_drop_NA()
+    self._pipeline_factory()
+    self._fit()
+    self._transform()
+    
+  def _pipeline_factory(self) -> None:
+    # Pca object
+    self.pca = PCA(n_components = self.pca_components)
+    # Df fill
+    self.results.loc[0, 'PCA_COMPONENTS'] = self.pca_components
+    self.results.loc[0, 'ENCODER'] = self._encoder
+    self.preprocessor = ColumnTransformer( 
+                                            transformers=[
+
+                                                            ('encoder', self._encoder, list(self.data.select_dtypes(["object","bool"]).columns)),
+                                                          ],
+                                              remainder='passthrough' 
+                                          )
+    if self.is_numerical_transformed:
+      self.results.loc[0, 'NUMERICAL_TRANSFORMER'] = self._num_transformer
+      self.pipeline = Pipeline(
+                                steps=[
+                                        ('preprocessor', self.preprocessor),
+                                        ('num_transf', self._num_transformer ),
+                                        ("pca",self.pca),
+                                      ]
+                              )
+    else:
+      self.results.loc[0, 'NUMERICAL_TRANSFORMER'] = 'None'
+      self.pipeline = Pipeline(
+                                steps=[
+                                        ('preprocessor', self.preprocessor),
+                                        ("pca",self.pca),
+                                      ]
+                              )
+  def _fit(self) -> Pipeline:
+    _fitted_pipe = self.pipeline.fit(self.data)
+    self._is_fitted = True
+    self.results.loc[0, 'ORIGINAL_VARIANCE_RETAINED'] = np.sum(self.get_variance())
+    self._encoder_name = self.pipeline.named_steps['preprocessor'].transformers[0][1]
+    return _fitted_pipe
+  
+  def _transform(self) -> None:
+    self.data_transformed = self.pipeline.transform(self.data)
+  
+  def get_variance(self) -> np.ndarray:
+    if self._is_fitted:
+      self.variance = self.pca.explained_variance_ratio_
+      return self.variance
+    else:
+      print(f"Error in method get_variance : PCA not fitted, call study_case method first")
+  @property
+  def plot_variance_retained(self) -> None:
+      """Plot del porcentaje de varianza retenida por cada PCA creada"""
       
-    def study_case(self) -> None:
-      pass
+      if self._is_fitted:
+        
+        if self.verbose == 1:
+          print(f'Number of PCA components choosen after using {self._encoder_name}: {(len(self.variance))}') 
+          print(f'Explained variance ratio: \n {(self.variance)}') 
+          print(f'Fraction of original variance (or information) kept by each principal component axis (or image vector) after apllying {self._encoder_name}:{(np.sum(self.variance))}') # image vector == vector proyectado
+          print("-----------------------------------------------------------------")
+          
+        # Plot del porcentaje de varianza retenida por cada PCA creada
+        plt.figure(figsize=(12, 9), layout ='constrained',linewidth = 0.1)
+        plt.bar(range(1,len(self.variance) +1 ), self.variance, alpha=1, align='center', label=f'Individual explained variance',color = 'cyan', edgecolor = 'black')
+        plt.ylabel('Explained variance ratio')
+        plt.xlabel(f'Principal components using {self._encoder_name}')
+        plt.xticks(range( 1,len(self.variance) +1))
+        plt.grid()
+        plt.legend(loc='best')
+        plt.show()
+        
+      else:
+        print(f"Error in method plot_variance_retained : PCA not fitted, call study_case method first")
+  
+
+  def _user_drop_NA(self)-> None:
+    """_summary_
+
+    Args:
+        data (pd.DataFrame): _description_
+        verbose (int, optional): _description_. Defaults to verbose.
+    """
+    
+    # Manejo de de valores faltantes, porque PCA no maneja NA values es necesario dropearlos del dataframe
+    no_NA = False
+    col_with_NA = []
+    for col in self.data.columns:
+      if self.data[f"{col}"].isnull().sum() > 0:
+        col_with_NA.append((col,self.data[f"{col}"].isnull().sum()))
+      else:
+        no_NA = True
+        
+    if self.verbose == 1:
+      print("col_with_NA: ",col_with_NA)
       
-      
+    if no_NA:
+      if self.verbose == 1:
+        print("No NA values in the dataframe")
+    else:
+      # Drop de esos NA, el usuario por pantalla elige si dropear la columna entera o las filas. [si hay muchos NA en esa columna drop de columna si no de fila]
+      data_drop = self.data.copy()
+      for col_name,num_NA in col_with_NA:
+
+        print(f"En la columna '{col_name}' con {num_NA} valores NA, hay: {data[f'{col_name}'].shape[0]} filas y el {(num_NA/data[f'{col_name}'].shape[0]) *100} % son valores NA")
+        n = int(input(f"insertar: '1' para borrar la columna {col_name} o '0' para borrar sus filas con valores NA -- "))
+        print("-----------------------------------------------------------------")
+        while n != 1 and n != 0:
+          n = input("Input error: no existe esa opcion, vuelva a introducir '1' o '0' : ")
+          print("-----------------------------------------------------------------")
+        if n == 1:
+          data_drop.drop(labels = f'{col_name}', axis = 1, inplace = True)
+        if n == 0:
+          data_drop.dropna( subset = [f"{col_name}"], inplace = True)
+          print(f"Actualizacion del dataframe tras el drop -- numero filas :  {data_drop[f'{col_name}'].shape[0]} ")
+          print("-----------------------------------------------------------------")
+        print(f"Actualizacion del dataframe tras el drop -- numero columnas :  {len(data_drop.columns)} ")
+        print("-----------------------------------------------------------------")
+        self.data = data_drop
+    
+    
   
 def pca(
           data: pd.DataFrame, 
@@ -248,7 +391,7 @@ def pca(
     
     _plot_variance_retained(variance = variance, codifier_name = codifier_name)
     if verbose == 1:
-      print(f'Number of PCA components choosen after using {pipeline.named_steps['preprocessor'].transformers[0][1]}: {(len(variance))}') 
+      print(f'Number of PCA components choosen after using {codifier_name}: {(len(variance))}') 
       print(f'Explained variance ratio: \n {(variance)}') 
       print(f'Fraction of original variance (or information) kept by each principal component axis (or image vector) after apllying {codifier_name}:{(np.sum(variance))}') # image vector == vector proyectado
       print("-----------------------------------------------------------------")
@@ -380,4 +523,15 @@ def seq_feature_selector(
                               )
   sfs.fit(X,y)
   return sfs.transform(X)
-  
+
+
+def testing():
+  import os
+  train = pd.read_csv(os.path.abspath("C:\\Users\\Koke\\Desktop\\MASTER_IA\\TareaFinalSupervised\\data\\train.csv"))
+  pca1  = PCAStudy(data =train , encoder = OneHotEncoder(), pca_components = 2 , num_transformer = StandardScaler(),verbose  = 1)
+  pca1.plot_variance_retained
+  pca1.study_case
+  pca1.plot_variance_retained
+  print(pca1.results.head())
+if __name__ == '__main__':
+  testing()
