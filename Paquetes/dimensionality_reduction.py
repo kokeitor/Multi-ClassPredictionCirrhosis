@@ -124,19 +124,19 @@ class PCAStudy:
   def _fit(self) -> Pipeline:
     _fitted_pipe = self.pipeline.fit(self.data)
     self._is_fitted = True
-    self.results.loc[0, 'ORIGINAL_VARIANCE_RETAINED'] = np.sum(self.get_variance())
+    self.results.loc[0, 'ORIGINAL_VARIANCE_RETAINED'] = np.sum(self.get_variance)
     self._encoder_name = self.pipeline.named_steps['preprocessor'].transformers[0][1]
     return _fitted_pipe
   
   def _transform(self) -> None:
     self.data_transformed = self.pipeline.transform(self.data)
   
+  @property
   def get_variance(self) -> np.ndarray:
     if self._is_fitted:
-      self.variance = self.pca.explained_variance_ratio_
-      return self.variance
+      return self.pca.explained_variance_ratio_
     else:
-      print(f"Error in method get_variance : PCA not fitted, call study_case method first")
+      print(f"Error in property get_variance : PCA not fitted, call study_case method first")
   @property
   def plot_variance_retained(self) -> None:
       """Plot del porcentaje de varianza retenida por cada PCA creada"""
@@ -144,17 +144,17 @@ class PCAStudy:
       if self._is_fitted:
         
         if self.verbose == 1:
-          print(f'Number of PCA components choosen after using {self._encoder_name}: {(len(self.variance))}') 
-          print(f'Explained variance ratio: \n {(self.variance)}') 
-          print(f'Fraction of original variance (or information) kept by each principal component axis (or image vector) after apllying {self._encoder_name}:{(np.sum(self.variance))}') # image vector == vector proyectado
+          print(f'Number of PCA components choosen after using {self._encoder_name}: {(len(self.get_variance))}') 
+          print(f'Explained variance ratio: \n {(self.get_variance)}') 
+          print(f'Fraction of original variance (or information) kept by each principal component axis (or image vector) after apllying {self._encoder_name} : {round(np.sum(self.get_variance),3)}') # image vector == vector proyectado
           print("-----------------------------------------------------------------")
           
         # Plot del porcentaje de varianza retenida por cada PCA creada
         plt.figure(figsize=(12, 9), layout ='constrained',linewidth = 0.1)
-        plt.bar(range(1,len(self.variance) +1 ), self.variance, alpha=1, align='center', label=f'Individual explained variance',color = 'cyan', edgecolor = 'black')
+        plt.bar(range(1,len(self.get_variance) +1 ), self.get_variance, alpha=1, align='center', label=f'Individual explained variance',color = 'cyan', edgecolor = 'black')
         plt.ylabel('Explained variance ratio')
         plt.xlabel(f'Principal components using {self._encoder_name}')
-        plt.xticks(range( 1,len(self.variance) +1))
+        plt.xticks(range( 1,len(self.get_variance) +1))
         plt.grid()
         plt.legend(loc='best')
         plt.show()
@@ -181,7 +181,7 @@ class PCAStudy:
         no_NA = True
         
     if self.verbose == 1:
-      print("col_with_NA: ",col_with_NA)
+      print("Columns with NA ",col_with_NA)
       
     if no_NA:
       if self.verbose == 1:
@@ -191,7 +191,7 @@ class PCAStudy:
       data_drop = self.data.copy()
       for col_name,num_NA in col_with_NA:
 
-        print(f"En la columna '{col_name}' con {num_NA} valores NA, hay: {data[f'{col_name}'].shape[0]} filas y el {(num_NA/data[f'{col_name}'].shape[0]) *100} % son valores NA")
+        print(f"En la columna '{col_name}' con {num_NA} valores NA, hay: {self.data[f'{col_name}'].shape[0]} filas y el {(num_NA/self.data[f'{col_name}'].shape[0]) *100} % son valores NA")
         n = int(input(f"insertar: '1' para borrar la columna {col_name} o '0' para borrar sus filas con valores NA -- "))
         print("-----------------------------------------------------------------")
         while n != 1 and n != 0:
