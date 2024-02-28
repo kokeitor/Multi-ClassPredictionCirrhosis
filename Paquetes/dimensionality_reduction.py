@@ -9,6 +9,7 @@ from sklearn.preprocessing import StandardScaler,MinMaxScaler,MaxAbsScaler,Robus
 from sklearn.preprocessing import OneHotEncoder,OrdinalEncoder
 from itertools import product
 from typing import  Callable, Optional, List, Dict, Tuple
+import seaborn as sns
 
 class PCAStudy:
   
@@ -52,8 +53,11 @@ class PCAStudy:
   @property
   def encoder(self) -> List[object]:
     return self._encoder
+  
   @property
   def num_transformer(self) -> List[object]:
+    if self._num_transformer == None:
+      print("Warning : No numerical transformer has been provided")
     return self._num_transformer
   
   @encoder.setter
@@ -80,7 +84,7 @@ class PCAStudy:
       if self.verbose ==1:
         print('combinations',self.case_to_study)
     self.results = pd.DataFrame(
-                                columns = ['ENCODER','ORIGINAL_FEATURES','NEW_FEATURES','NUMERICAL_TRANSFORMER','PCA_COMPONENTS','ORIGINAL_VARIANCE_RETAINED'], 
+                                columns = ['ENCODER','ORIGINAL_FEATURES','ENCODED_FEATURES','NUMERICAL_TRANSFORMER','PCA_COMPONENTS','ORIGINAL_VARIANCE_RETAINED'], 
                                 index = range(len(self.case_to_study))
                                 )
   @property
@@ -126,6 +130,22 @@ class PCAStudy:
     self._is_fitted = True
     self.results.loc[0, 'ORIGINAL_VARIANCE_RETAINED'] = np.sum(self.get_variance)
     self._encoder_name = self.pipeline.named_steps['preprocessor'].transformers[0][1]
+    
+    # Obtencion de las features tras cada step del pipeline
+    self.encoded_columns = self.pipeline['preprocessor'].get_feature_names_out(input_features = self.data.columns) #obtener nombre de las features tras un preprocesamiento en cierto step del pipeline
+    if self.is_numerical_transformed:
+      self.num_encoded_columns = self.pipeline['num_transf'].get_feature_names_out(input_features = self.encoded_columns) #obtener nombre de las features en el step 2 del pipeline
+    
+    if self.verbose == 1:
+      print(f"Numero de features tras step {str(self.pipeline['preprocessor'])}: ",len(self.encoded_columns))
+      if self.is_numerical_transformed:
+        print(f"Numero de features tras step {str(self.pipeline['num_transf'])}: ",len(self.num_encoded_columns))
+      print("-----------------------------------------------------------------")
+
+    # Df fill
+    self.results.loc[0, 'ORIGINAL_FEATURES'] = len(self.data.columns)
+    self.results.loc[0, 'ENCODED_FEATURES'] = len(self.encoded_columns)
+    
     return _fitted_pipe
   
   def _transform(self) -> None:
@@ -161,16 +181,44 @@ class PCAStudy:
         
       else:
         print(f"Error in method plot_variance_retained : PCA not fitted, call study_case method first")
-  
-
-  def _user_drop_NA(self)-> None:
+  @property
+  def plot_feature_weights(self) -> None:
     """_summary_
-
-    Args:
-        data (pd.DataFrame): _description_
-        verbose (int, optional): _description_. Defaults to verbose.
     """
+    if self._is_fitted:
+      self.eigenvectors = self.pipeline["pca"].components_
+      if self.verbose ==1:
+        print(f"Eigenvectors : \n {self.eigenvectors}")
+        
+      _plot_cols = self.encoded_columns 
+      if self.is_numerical_transformed:
+        _plot_cols = self.num_encoded_columns 
+
+      for indx,eigenvector in enumerate(self.eigenvectors):
+        plt.figure(figsize=(15, 10), layout= 'constrained')
+        plt.bar( _plot_cols, eigenvector, color='blue', edgecolor = 'black')
+        plt.xlabel('Features')
+        plt.ylabel('weights [lineal combinations]')
+        plt.xticks(rotation=40)
+        plt.title(f'{indx+1} Principal Component Weights for Each Feature using {self._encoder_name}')
+        plt.grid()
+        plt.show()
+    else:
+      print(f"Error in method plo_feature_weights : PCA not fitted, call study_case method first")
+    """    
+    plt.figure(figsize=(15, 10), layout= 'constrained')
+    plt.bar(feature_namesfor_plotting, first_principal_component_plotting, color='blue', edgecolor = 'black')
+    plt.xlabel('Features')
+    plt.ylabel('Value')
+    plt.xticks(rotation=40)
+    plt.title(f'First Principal Component Weights for Each Feature using {codifier_name}')
+    plt.grid()
+    plt.show()
+    """
+  
     
+  def _user_drop_NA(self)-> None:
+    """User NA interactive dropper"""
     # Manejo de de valores faltantes, porque PCA no maneja NA values es necesario dropearlos del dataframe
     no_NA = False
     col_with_NA = []
