@@ -114,7 +114,7 @@ def corr_heatmap(df: pd.DataFrame) -> float:
     df_numeric = df.select_dtypes(include=["int64", "float64", "boolean"])
     corr_num = df_numeric.corr()
     # Create heatmap
-    plt.figure(figsize=(18, 6))
+    plt.figure(figsize=(22, 10))
     sns.heatmap(corr_num, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
     plt.title("Correlation Heatmap")
     plt.show()
@@ -122,78 +122,121 @@ def corr_heatmap(df: pd.DataFrame) -> float:
     return corr_num
 
 
-# def validate_models(
-#     models: list[dict],
-#     data: pd.DataFrame,
-#     label=LABEL,
-#     n_splits=5,
-#     n_repeats=1,
-#     seed=43,
-# ):
-#     """Run models and test them on validation sets. The optimal parameters
-#     should be retrieved from previous runs e.g. GridSearchCV etc."""
+def train_models(
+    models: list[dict], data: pd.DataFrame, label, n_splits=5, n_repeats=1, seed=43
+):
+    """Trains Models. The optimal parameters
+    should be retrieved from previous runs e.g. GridSearchCV etc."""
+    train_scores = {}
+    pbar = tqdm(models)
+    for model in pbar:
 
-#     # TODO: the model dicts should contain the FEATS (since different FEATS should be used)
+        model_str = model["name"]
+        model_est = model["model"]
+        model_feats = model["feats"]
 
-#     train_scores, val_scores = {}, {}
+        pbar.set_description(f"Processing {model_str}...")
 
-#     pbar = tqdm(models)
-#     for model in pbar:
+        train_scores[model_str] = []
 
-#         # Model needs to be a dict (before tuple) since I need a mutable datatype
-#         # to insert the average validation score in the end
-#         model_str = model["name"]
-#         model_est = model["model"]
-#         model_feats = model["feats"]
+        skf = RepeatedStratifiedKFold(
+            n_splits=n_splits, n_repeats=n_repeats, random_state=seed
+        )
 
-#         pbar.set_description(f"Processing {model_str}...")
+        for i, (train_idx, val_idx) in enumerate(
+            skf.split(data[model_feats], data[label])
+        ):
+            pbar.set_postfix_str(f"Fold {i+1}/{n_splits}")
+            # Resetting index to ensure valid indices
+            train_idx = data[model_feats].index[train_idx]
+            val_idx = data[model_feats].index[val_idx]
+            X_train, y_train = (
+                data[model_feats].loc[train_idx],
+                data[label].loc[train_idx],
+            )
 
-#         train_scores[model_str] = []
-#         val_scores[model_str] = []
+            if model_str in ["lgb_cl"]:
+                callbacks = [
+                    lgb.early_stopping(stopping_rounds=50),
+                    lgb.log_evaluation(period=0),
+                ]
+                model_est.fit(X_train, y_train, callbacks=callbacks)
+            elif model_str in ["xgb_cl", "cat_cl"]:
+                model_est.fit(X_train, y_train, verbose=0)
+            elif model_str in ["voting_clf"]:
+                pass  # TODO: find a solution
+            else:
+                model_est.fit(X_train, y_train)
 
-#         # I think I should drop the seed when I blend the models together
-#         # -> they will be trained on different datasets
-#         skf = RepeatedStratifiedKFold(
-#             n_splits=n_splits, n_repeats=n_repeats, random_state=seed
-#         )
+            train_preds = model_est.predict_proba(X_train[model_feats])
+            train_score = log_loss(y_train, train_preds)
+            train_scores[model_str].append(train_score)
 
-#         for i, (train_idx, val_idx) in enumerate(
-#             skf.split(data[model_feats], data[label])
-#         ):
-#             pbar.set_postfix_str(f"Fold {i+1}/{n_splits}")
+    return models, pd.DataFrame(train_scores)
 
-#             X_train, y_train = (
-#                 data[model_feats].loc[train_idx],
-#                 data[label].loc[train_idx],
-#             )
-#             X_val, y_val = data[model_feats].loc[val_idx], data[label].loc[val_idx]
 
-#             if model_str in ["lgb_cl"]:
-#                 callbacks = [
-#                     lgb.early_stopping(stopping_rounds=50),
-#                     lgb.log_evaluation(period=0),
-#                 ]
-#                 model_est.fit(
-#                     X_train, y_train, eval_set=[(X_val, y_val)], callbacks=callbacks
-#                 )
-#             elif model_str in ["xgb_cl", "cat_cl"]:
-#                 model_est.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=0)
-#             elif model_str in ["voting_clf"]:
-#                 pass  # TODO: find a solution
-#             else:
-#                 model_est.fit(X_train, y_train)
+def validate_models(models: list[dict],
+                    data: pd.DataFrame,
+                    label,
+                    n_splits=5,
+                    n_repeats=1,
+                    seed=43):
+    """Run models and test them on validation sets. The optimal parameters
+    should be retrieved from previous runs e.g. GridSearchCV etc."""
 
-#             train_preds = model_est.predict_proba(X_train[model_feats])
-#             valid_preds = model_est.predict_proba(X_val[model_feats])
-#             train_score = log_loss(y_train, train_preds)
-#             val_score = log_loss(y_val, valid_preds)
-#             train_scores[model_str].append(train_score)
-#             val_scores[model_str].append(val_score)
+    # TODO: the model dicts should contain the FEATS (since different FEATS should be used)
 
-#             # print(f"{model_str} | Fold {i + 1} | " +
-#             #      f"Train log_loss: {round(train_score, 4)} | " +
-#             #      f"Valid log_loss: {round(val_score, 4)}")
+    train_scores, val_scores = {}, {}
 
-#         model["avg_val_score"] = np.mean(val_scores[model_str])
+    pbar = tqdm(models)
+    for model in pbar:
 
-#     return models, pd.DataFrame(train_scores), pd.DataFrame(val_scores)
+        # Model needs to be a dict (before tuple) since I need a mutable datatype
+        # to insert the average validation score in the end
+        model_str = model["name"]
+        model_est = model["model"]
+        model_feats = model["feats"]
+
+        pbar.set_description(f"Processing {model_str}...")
+
+        train_scores[model_str] = []
+        val_scores[model_str] = []
+
+        # I think I should drop the seed when I blend the models together
+        # -> they will be trained on different datasets
+        skf = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=seed)
+
+        for i, (train_idx, val_idx) in enumerate(skf.split(data[model_feats], data[label])):
+            pbar.set_postfix_str(f"Fold {i + 1}/{n_splits}")
+            # Resetting index to ensure valid indices
+            train_idx = data[model_feats].index[train_idx]
+            val_idx = data[model_feats].index[val_idx]
+            X_train, y_train = data[model_feats].loc[train_idx], data[label].loc[train_idx]
+            # X_train, y_train = data.loc[train_idx, model_feats], data.loc[train_idx, label]
+            X_val, y_val = data[model_feats].loc[val_idx], data[label].loc[val_idx]
+
+            # print(X_train.dtypes)
+            if model_str in ["lgb_cl"]:
+                callbacks = [lgb.early_stopping(stopping_rounds=50), lgb.log_evaluation(period=0)]
+                model_est.fit(X_train, y_train, eval_set=[(X_val, y_val)], callbacks=callbacks)
+            elif model_str in ["xgb_cl", "cat_cl"]:
+                model_est.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=0)
+            elif model_str in ["voting_clf"]:
+                pass  # TODO: find a solution
+            else:
+                model_est.fit(X_train, y_train)
+
+            train_preds = model_est.predict_proba(X_train[model_feats])
+            valid_preds = model_est.predict_proba(X_val[model_feats])
+            train_score = log_loss(y_train, train_preds)
+            val_score = log_loss(y_val, valid_preds)
+            train_scores[model_str].append(train_score)
+            val_scores[model_str].append(val_score)
+
+            # print(f"{model_str} | Fold {i + 1} | " +
+            #      f"Train log_loss: {round(train_score, 4)} | " +
+            #      f"Valid log_loss: {round(val_score, 4)}")
+
+        model["avg_val_score"] = np.mean(val_scores[model_str])
+
+    return models, pd.DataFrame(train_scores), pd.DataFrame(val_scores)
