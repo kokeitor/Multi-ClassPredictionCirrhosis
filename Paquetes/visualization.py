@@ -75,12 +75,12 @@ class Eda:
     """
     # Atribute initialization
     self.data = data
-    self.num_data = data.select_dtypes(["Float64","Float32","Int64","Int32"])
-    self.cat_data = data.select_dtypes(["object","bool","string"])
-    self.columns = list(data.columns)
-    self.num_cols = list(data.select_dtypes(["Float64","Float32","Int64","Int32"]).columns)
-    self.cat_cols = list(data.select_dtypes(["object","bool","string"]).columns)
-    self.date_cols = list(data.select_dtypes(["datetime64[ns]"]).columns)
+    self.num_data = self.data.select_dtypes(["Float64","Float32","Int64","Int32"])
+    self.cat_data = self.data.select_dtypes(["object","bool","string"])
+    self.columns = list(self.data.columns)
+    self.num_cols = list(self.data.select_dtypes(["Float64","Float32","Int64","Int32"]).columns)
+    self.cat_cols = list(self.data.select_dtypes(["object","bool","string"]).columns)
+    self.date_cols = list(self.data.select_dtypes(["datetime64[ns]"]).columns)
     self.dtypes = self.data.dtypes
     self.plotly_cmaps =  [
                               "aggrnyl", "agsunset", "blackbody", "bluered", "blues", "blugrn", "bluyl", "brwnyl",
@@ -103,6 +103,7 @@ class Eda:
         self._auto_eda( depVar = target_var)
       else:
         print(f"Error - target var :{target_var} for automatic Eda, not in columns of the dataframe ")
+        
     
   # dunder magic special methods:
   def __str__(self) -> str:
