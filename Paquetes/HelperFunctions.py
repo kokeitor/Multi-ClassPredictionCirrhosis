@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.metrics import log_loss
+from sklearn.metrics import log_loss, roc_auc_score
 from sklearn.model_selection import (
     GroupKFold,
     KFold,
@@ -175,12 +175,9 @@ def train_models(
     return models, pd.DataFrame(train_scores)
 
 
-def validate_models(models: list[dict],
-                    data: pd.DataFrame,
-                    label,
-                    n_splits=5,
-                    n_repeats=1,
-                    seed=43):
+def validate_models(
+    models: list[dict], data: pd.DataFrame, label, n_splits=5, n_repeats=1, seed=42
+):
     """Run models and test them on validation sets. The optimal parameters
     should be retrieved from previous runs e.g. GridSearchCV etc."""
 
@@ -204,21 +201,33 @@ def validate_models(models: list[dict],
 
         # I think I should drop the seed when I blend the models together
         # -> they will be trained on different datasets
-        skf = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=seed)
+        skf = RepeatedStratifiedKFold(
+            n_splits=n_splits, n_repeats=n_repeats, random_state=seed
+        )
 
-        for i, (train_idx, val_idx) in enumerate(skf.split(data[model_feats], data[label])):
+        for i, (train_idx, val_idx) in enumerate(
+            skf.split(data[model_feats], data[label])
+        ):
             pbar.set_postfix_str(f"Fold {i + 1}/{n_splits}")
             # Resetting index to ensure valid indices
             train_idx = data[model_feats].index[train_idx]
             val_idx = data[model_feats].index[val_idx]
-            X_train, y_train = data[model_feats].loc[train_idx], data[label].loc[train_idx]
+            X_train, y_train = (
+                data[model_feats].loc[train_idx],
+                data[label].loc[train_idx],
+            )
             # X_train, y_train = data.loc[train_idx, model_feats], data.loc[train_idx, label]
             X_val, y_val = data[model_feats].loc[val_idx], data[label].loc[val_idx]
 
             # print(X_train.dtypes)
             if model_str in ["lgb_cl"]:
-                callbacks = [lgb.early_stopping(stopping_rounds=50), lgb.log_evaluation(period=0)]
-                model_est.fit(X_train, y_train, eval_set=[(X_val, y_val)], callbacks=callbacks)
+                callbacks = [
+                    lgb.early_stopping(stopping_rounds=50),
+                    lgb.log_evaluation(period=0),
+                ]
+                model_est.fit(
+                    X_train, y_train, eval_set=[(X_val, y_val)], callbacks=callbacks
+                )
             elif model_str in ["xgb_cl", "cat_cl"]:
                 model_est.fit(X_train, y_train, eval_set=[(X_val, y_val)], verbose=0)
             elif model_str in ["voting_clf"]:
@@ -230,6 +239,7 @@ def validate_models(models: list[dict],
             valid_preds = model_est.predict_proba(X_val[model_feats])
             train_score = log_loss(y_train, train_preds)
             val_score = log_loss(y_val, valid_preds)
+
             train_scores[model_str].append(train_score)
             val_scores[model_str].append(val_score)
 
