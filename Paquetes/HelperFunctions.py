@@ -113,6 +113,7 @@ def value_counts_all_cols(
 def corr_heatmap(df: pd.DataFrame) -> float:
     df_numeric = df.select_dtypes(include=["int64", "float64", "boolean"])
     corr_num = df_numeric.corr()
+    # print(corr_num)
     # Create heatmap
     plt.figure(figsize=(22, 10))
     sns.heatmap(corr_num, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5)
@@ -208,7 +209,7 @@ def validate_models(
         for i, (train_idx, val_idx) in enumerate(
             skf.split(data[model_feats], data[label])
         ):
-            pbar.set_postfix_str(f"Fold {i + 1}/{n_splits}")
+            pbar.set_postfix_str(f"Fold {i + 1}/{n_splits*n_repeats}")
             # Resetting index to ensure valid indices
             train_idx = data[model_feats].index[train_idx]
             val_idx = data[model_feats].index[val_idx]
